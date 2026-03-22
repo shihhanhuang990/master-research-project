@@ -1,0 +1,49 @@
+#quick installation of seedvicious to unix
+mkdir software 
+cd software
+curl -O "https://seedvicious.essex.ac.uk/seedVicious_v1.3_x64.tar.gz"
+echo 'export PATH=$PATH:~/software/seedVicious_v1.3_x64' >> ~/.bashrc
+source ~/.bashrc
+seedViciousTest
+
+#In high-throughput analyses it is often convenient to scan transcripts for canonical seeds without any additional filtering step like conservation. 
+#This is particularly useful when studying evolution, to avoid the circular reasoning of using evolutionary conservation to infer evolutionary conservation.
+#merge all these microRNAs into so-called microRNA seed families1 using the optional tag -f.
+
+seedVicious -i "/storage/st05d2/MarcoPGT/genomes/hsa_longest_3utr_HEK293p3hg38.fasta" -m "/storage/st05d2/MarcoPGT/genomes/hsa_mature.fa" -f -o HEK293p3hg38_canonical.txt
+
+seedVicious -i "/storage/st05d2/MarcoPGT/genomes/hsa_longest_3utr_HEK293p2hg38.fasta" -m "/storage/st05d2/MarcoPGT/genomes/hsa_mature.fa" -f -o HEK293p2hg38_canonical.txt
+
+seedVicious -i "/storage/st05d2/MarcoPGT/genomes/hsa_longest_3utr_hg38.fasta" -m "/storage/st05d2/MarcoPGT/genomes/hsa_mature.fa" -f -o hg38_canonical.txt
+
+
+#Loading Data into Rstudio
+
+p2_canonical <- read.table("HEK293p2hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+p3_canonical <- read.table("HEK293p3hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+hg38_canonical <- read.table("hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+
+
+
+
+
+#Finding Intersections
+install.packages("dplyr")
+library(dplyr)
+hg38_p2inter <- dplyr::intersect(p2_canonical, hg38_canonical)
+hg38_p3_inter <- dplyr::intersect(p3_canonical, hg38_canonical)
+
+
+#Finding Unique Elements
+Unique_p2 <- setdiff(p2_canonical, hg38_canonical )
+Unique_p3 <- setdiff(p3_canonical, hg38_canonical )
+unique_hg38_p3 <- setdiff(hg38_canonical, p3_canonical)
+unique_hg38_p2 <- setdiff(hg38_canonical, p2_canonical)
+
+#Exporting Results
+write.csv(Unique_p2,"unique_p2.csv", row.names = FALSE)
+write.csv(Unique_p3,"unique_p3.csv", row.names = FALSE)
+write.csv(unique_hg38_p3,"unique_hg38p3.csv", row.names = FALSE)
+write.csv(unique_hg38_p2,"unique_hg38p2.csv", row.names = FALSE)
+write.csv(hg38_p2inter,"inter_hg38_p2.csv", row.names = FALSE)
+write.csv(hg38_p3_inter,"inter_hg38_p3.csv", row.names = FALSE)

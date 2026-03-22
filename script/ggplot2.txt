@@ -1,0 +1,81 @@
+install.packages("ggplot2")
+library(ggplot2)
+library(tidyverse)
+
+
+p2_canonical <- read.table("HEK293p2hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+p3_canonical <- read.table("HEK293p3hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+hg38_canonical <- read.table("hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+
+# Create a new dataframe called hgHEK2 using the as.data.frame function with the miR column from the hg38_canonical dataframe. 
+hgHEK2 <- as.data.frame(hg38_canonical$miR)
+
+
+# Add the miR columns from both hg38_canonical and p2_canonical to hgHEK2 
+hgHEK2[ ,2] <- (p2_canonical$miR)
+
+# Change the names of the columns. 
+colnames(hgHEK2) <- c("miR", "miR")
+
+# Then create a scatterplot of HEKp2hg_RNA2.bam vs hg38_RNA2.bam.
+
+ggplot(hgHEK2, aes(x= p2_canonical$miR, y= hg38_canonical$miR))+
+  geom_point()+
+  labs(x = "HEK293_ploidy2", y = "hg38")
+
+                     
+
+getwd()
+
+Uniqp2 <- data.frame(read.table("unique_p2.csv", header = TRUE))
+
+Uniqp3 <- data.frame(read.table("unique_p3.csv", header = TRUE))
+
+Uniqhg38p2 <- data.frame(read.table("unique_hg38p2.csv", header = TRUE))
+
+Uniqhg38p3 <- data.frame(read.table("unique_hg38p3.csv", header = TRUE))
+
+install.packages("ggplot2")
+library(ggplot2)
+library(tidyverse)
+
+
+p2_canonical <- read.table("HEK293p2hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+p3_canonical <- read.table("HEK293p3hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+hg38_canonical <- read.table("hg38_canonical.txt", header = TRUE, stringsAsFactors = FALSE, fill = TRUE, sep = "\t")
+
+hgHEK2 <- as.data.frame(hg38_canonical$miR)
+hgHEK2[ ,2] <- (p2_canonical$miR)
+# Change the names of the columns. 
+
+colnames(hgHEK2) <- c("miR", "miR")
+
+# Assuming that rows correspond to the same entities across tables
+hgHEK2 <- data.frame(
+  HEK293_ploidy2 = p2_canonical$miR,
+  hg38 = hg38_canonical$miR
+)
+# Load necessary library
+library(dplyr)
+
+# If there's no natural key, you can add row numbers as a key for alignment
+p2_canonical_1 <- p2_canonical %>% mutate(row_id = row_number())
+hg38_canonical_1 <- hg38_canonical %>% mutate(row_id = row_number())
+
+# Perform a full join
+hgHEK2_1 <- full_join(p2_canonical_1, hg38_canonical_1, by = "row_id", suffix = c("_p2", "_hg38"))
+
+# Remove the row_id if it's no longer needed
+hgHEK2_2 <- select(hgHEK2_1, -row_id)
+# Using ggplot2 to plot the data
+ggplot(hgHEK2_2, aes(x = miR_p2, y = miR_hg38)) +
+  geom_point() +
+  labs(x = "HEK293_ploidy2", y = "hg38") +
+  ggtitle("Comparison of Canonical Sites: Ploidy 2 vs hg38")
+
+
+# Then create a scatterplot of HEKp2hg_RNA2.bam vs hg38_RNA2.bam.
+
+ggplot(hgHEK2, aes(x= p2_canonical$miR, y= hg38_canonical$miR))+
+  geom_point()+
+  labs(x = "HEK293_ploidy2", y = "hg38")

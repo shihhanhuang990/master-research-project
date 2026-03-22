@@ -1,0 +1,44 @@
+# Load libraries
+library(biomaRt)
+library(tidyverse)
+
+# Connect to biomart
+ensembl.genes.mart <- useEnsembl(biomart = "genes", 
+                                 dataset = "hsapiens_gene_ensembl")
+
+# Set attributed (outputs) and filters (protein_coding)
+attributes <- c("ensembl_gene_id",
+                "chromosome_name",
+                "strand",
+                "3_utr_start",
+                "3_utr_end",
+                "external_gene_name")
+filters <- "biotype"
+values <- "protein_coding"
+
+# Retrieve coordinates of 3UTRs
+coord_3utr <- biomaRt::getBM (attributes = attributes,
+                                mart = ensembl.genes.mart,
+                                filters = filters,
+                                values = values)
+
+# Additional filters
+canonical_chromosomes <- c(1:22, "X", "Y")
+coord_3utr_bed <- coord_3utr |>
+  rename(start_3utr = '3_utr_start',
+         end_3utr = '3_utr_end') |>
+  filter(chromosome_name %in% canonical_chromosomes) |> # only genes in canonical chromosomes
+  filter(!is.na(start_3utr)) |> # remove rown with coordinate value 'NA'
+  mutate(length_3utr = end_3utr - start_3utr + 1) |> # length of the 3UTR
+  group_by(external_gene_name) |> # next three line to get the longest 3UTR
+  filter(length_3utr == max(length_3utr)) |>
+  ungroup() |> 
+  mutate(score = ".") |> # Next three lines to get table in BED format
+  select(chromosome_name, start_3utr, end_3utr, external_gene_name, score, strand) |>
+  mutate(start_3utr = start_3utr - 1) |> # In nBED format, the first (start) coordinate is 0-base
+  mutate(chromosome_name = paste("chr", chromosome_name, sep = "")) |> # add 'chr' to chromosome name
+  mutate(strand=ifelse(strand==1, "+", "-")) # Correct BED strand formatting
+
+  
+write_tsv(coord_3utr_bed, file = "hsa_longest_3UTR.bed", col_names = FALSE)
+

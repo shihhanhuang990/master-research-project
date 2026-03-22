@@ -1,0 +1,120 @@
+#Setting Up the Environment
+
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("biomaRt")
+library(biomaRt)
+
+#connect to the Ensembl database for human genes
+
+ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+#Loads SNP data from two TSV files into R as data frames. 
+vcf_p3_data <- read.delim("filtered_snps_p3.tsv", header = TRUE, stringsAsFactors = FALSE)
+vcf_p2_data <- read.delim("filtered_snps_p2.tsv", header = TRUE, stringsAsFactors = FALSE)
+
+##Prepare SNP Data Frames #Converts the SNP data into a structured format suitable for analysis, ensuring that positions are numeric and chromosome identifiers are character strings.
+snp_data_p3 <- data.frame(
+  position = as.numeric(vcf_p3_data$POS),  
+  chromosome = as.character(vcf_p3_data$CHROM))
+
+
+snp_data_p2 <- data.frame(
+  position = as.numeric(vcf_p2_data$POS),  
+  chromosome = as.character(vcf_p2_data$CHROM))
+
+##Create Values for BioMart Queries #Constructs strings that combine chromosome and position information in a format expected by biomaRt for querying genomic regions. These strings are used to retrieve specific gene annotations that correspond to the SNPs' locations.
+
+snp_data_p3$chromosome <- as.character(snp_data_p3$chromosome)
+snp_data_p3$position <- as.numeric(as.character(snp_data_p3$position))
+values_p3 <- paste("chr", snp_data_p3$chromosome, snp_data_p3$position, snp_data_p3$position, sep=":")
+head(values_p3)
+
+snp_data_p2$chromosome <- as.character(snp_data_p2$chromosome)
+snp_data_p2$position <- as.numeric(as.character(snp_data_p2$position))
+values_p2 <- paste("chr", snp_data_p2$chromosome, snp_data_p2$position, snp_data_p2$position, sep=":")
+head(values_p2)
+
+##Fetch Gene Annotations  #Retrieve 3'UTR coordinates
+##Retrieves gene annotations from Ensembl that have associated "RefSeq mRNA" data, focusing on specific genomic attributes including the positions of 3'UTRs.
+
+attributes <- c("chromosome_name", "ensembl_gene_id", "ensembl_gene_id_version", "start_position", "end_position", "strand",  "3_utr_start", "3_utr_end")
+
+gene_annotations <- getBM(
+  attributes = attributes,
+  filters = "with_refseq_mrna",   #choose this filter to focus on examining SNPs within protein-coding regions.
+  values = TRUE,  # Assuming you want entries with RefSeq mRNA annotations
+  mart = ensembl)
+
+# Remove rows where 'position', '3_utr_start', or '3_utr_end' are NA
+
+snp_data_p2 <- snp_data_p2[!is.na(snp_data_p2$position), ]
+snp_data_p3 <- snp_data_p3[!is.na(snp_data_p3$position), ]
+gene_annotations <- gene_annotations[!is.na(gene_annotations$`3_utr_start`) & !is.na(gene_annotations$`3_utr_end`), ]
+
+
+
+
+#Integrate SNP and Gene Data  ##Uses fuzzyjoin to merge SNP data with gene annotations based on whether SNP positions fall within the 3'UTR intervals. This identifies which SNPs are located in 3'UTRs and the associated genes.
+
+snp_gene_merged_p2_2 <- fuzzyjoin::interval_left_join(snp_data_p2, gene_annotations, 
+                                                      by = c("position" = "3_utr_start", "position" = "3_utr_end"))
+
+snp_gene_merged_p3 <- fuzzyjoin::interval_left_join(snp_data_p3, gene_annotations, 
+                                                      by = c("position" = "3_utr_start", "position" = "3_utr_end"))
+
+# Export the DataFrame to a CSV file
+write.csv(snp_gene_merged_p2_2, "C:/Users/USER/Documents/research project/Files/snp_gene_merged_p2.csv", row.names = FALSE)
+
+write.csv(snp_gene_merged_p3, "C:/Users/USER/Documents/research project/Files/snp_gene_merged_p3.csv", row.names = FALSE)
+
+
+data <- read.csv("snp_gene_merged_p2.csv")
+# Remove rows with any NA values
+clean_data_p2 <- na.omit(data)
+
+
+data2 <- read.csv("snp_gene_merged_p3.csv")
+# Remove rows with any NA values
+clean_data_p3 <- na.omit(data2)
+
+
+# Count total SNPs in 3'UTRs for each ploidy
+count_p2_3UTR_SNPs <- nrow(clean_data_p2)
+count_p3_3UTR_SNPs <- nrow(clean_data_p3)
+
+# Display the counts
+print(paste("Total SNPs in 3'UTRs for Ploidy 2:", count_p2_3UTR_SNPs))
+print(paste("Total SNPs in 3'UTRs for Ploidy 3:", count_p3_3UTR_SNPs))
+
+
+# Convert positions to character for accurate merging
+clean_data_p2$position <- as.character(clean_data_p2$position)
+clean_data_p2$chromosome <- as.character(clean_data_p2$chromosome)
+clean_data_p3$position <- as.character(clean_data_p3$position)
+clean_data_p3$chromosome <- as.character(clean_data_p3$chromosome)
+
+# Install dplyr if not already installed
+if (!require(dplyr, quietly = TRUE)) {
+  install.packages("dplyr")}
+
+# Load the dplyr package
+library(dplyr)
+
+
+# Find unique SNPs in each dataset
+unique_p2_SNPs <- anti_join(clean_data_p2, clean_data_p3, by = c("chromosome", "position"))
+unique_p3_SNPs <- anti_join(clean_data_p3, clean_data_p2, by = c("chromosome", "position"))
+
+# Count unique SNPs
+count_unique_p2_SNPs <- nrow(unique_p2_SNPs)
+count_unique_p3_SNPs <- nrow(unique_p3_SNPs)
+
+# Display the counts of unique SNPs
+print(paste("Unique SNPs in 3'UTRs for Ploidy 2:", count_unique_p2_SNPs))
+print(paste("Unique SNPs in 3'UTRs for Ploidy 3:", count_unique_p3_SNPs))
+
+
+# Export data
+write.csv(unique_p2_SNPs, "unique_p2_SNPs.csv", row.names = FALSE)
+write.csv(unique_p3_SNPs, "unique_p3_SNPs.csv", row.names = FALSE)

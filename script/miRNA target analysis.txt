@@ -1,0 +1,91 @@
+miRNA targets Analysis 
+
+# The first part is the absolute difference in target sites 
+
+library(BiocManager)
+library(tidyverse)
+library(data.table)
+library(dbplyr)
+
+hg38_dt <- fread("targets_hg38.tab")
+p2_dt <- fread("targets_HEK293p2hg38.tab")
+
+# Assuming hg38_dt and p2_dt are already loaded and are data.tables
+# Counting the number of target sites for each miR in both datasets
+hg38_counts <- hg38_dt[, .(Target_Sites = .N), by = V1]
+p2_counts <- p2_dt[, .(Target_Sites = .N), by = V1]
+
+# Give proper column names to make them more understandable
+setnames(hg38_counts, "V1", "miR")
+setnames(p2_counts, "V1", "miR")
+setnames(hg38_counts, "Target_Sites", "hg38_Target_Sites")
+setnames(p2_counts, "Target_Sites", "p2_Target_Sites")
+
+# Merging the count data
+miR_data_dt <- merge(hg38_counts, p2_counts, by = "miR", all = TRUE)
+
+# Calculate the difference in target sites
+a <- miR_data_dt[, Difference := hg38_Target_Sites - p2_Target_Sites]
+
+# Sort by the absolute value of the difference
+miR_data_dt <- miR_data_dt[order(-abs(Difference))]
+
+# Convert to data.frame
+miR_data_df <- as.data.frame(miR_data_dt)
+library(ggplot2)
+
+ggplot(miR_data_df, aes(x = hg38_Target_Sites, y = p2_Target_Sites)) +
+  geom_point() +
+  labs(title = "Difference in Target Sites Between hg38 and HEKp2",
+       x = "hg38",
+       y = "HEK293p2") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Rotate x labels for better readability
+
+ggsave("mir_counts_comparison_plot.png", width = 10, height = 6, dpi = 300)
+
+# This second part deals with the absolute differences in genes.
+
+library(BiocManager)
+library(tidyverse)
+library(data.table)
+library(dbplyr)
+
+hg38_dt <- fread("targets_hg38.tab")
+p2_dt <- fread("targets_HEK293p2hg38.tab")
+
+# Assuming hg38_dt and p2_dt are already loaded and are data.tables
+# Counting the number of target sites for each miR in both datasets
+hg38_counts <- hg38_dt[, .(Genes = .N), by = V2]
+p2_counts <- p2_dt[, .(Genes = .N), by = V2]
+
+# Give proper column names to make them more understandable
+setnames(hg38_counts, "V2", "tr")
+setnames(p2_counts, "V2", "tr")
+setnames(hg38_counts, "Genes", "hg38_Genes")
+setnames(p2_counts, "Genes", "p2_Genes")
+
+# Merging the count data
+Genes_data_dt <- merge(hg38_counts, p2_counts, by = "tr", all = TRUE)
+
+# Calculate the difference in gene count
+a <- Genes_data_dt[, Difference := hg38_Genes - p2_Genes]
+
+# Sort by the absolute value of the difference
+Genes_data_dt <- Genes_data_dt[order(-abs(Difference))]
+
+# Convert to data.frame
+Genes_data_df <- as.data.frame(Genes_data_dt)
+
+library(ggplot2)
+
+ggplot(Genes_data_df, aes(x = hg38_Genes, y = p2_Genes)) +
+  geom_point() +
+  labs(title = "Difference in Gene count Between hg38 and HEKp2",
+       x = "hg38",
+       y = "HEK293p2") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  # Rotate x labels for better readability
+
+ggsave("gene_counts_comparison_plot.png", width = 10, height = 6, dpi = 300)
+
