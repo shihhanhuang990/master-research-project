@@ -18,4 +18,4 @@ The analysis was performed using a professional-grade computational workflow:
 
 ## Repository Structure
 - `/scripts`: BASH and R scripts for the GATK pipeline and downstream analysis.
-- `/data_processing`: Methods for retrieving the longest 3'UTRs and fuzzy joining SNP data.
+
